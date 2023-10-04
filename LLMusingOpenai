@@ -1,0 +1,72 @@
+import openai
+import streamlit as st
+import subprocess
+
+# Set your Gorilla LLM API key here
+openai.api_key = "YOUR_API_KEY"
+openai.api_base = "http://your-api-base-url.com/v1"
+
+def get_gorilla_response(prompt, model):
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return "An error occurred. Please try again later."
+
+def extract_code(output):
+    code = output.split("code>>>:")[1]
+    return code
+
+def run_generated_code(file_path):
+    command = ["python", file_path]
+
+    try:
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        if result.returncode == 0:
+            st.success("Code execution successful.")
+            st.code(result.stdout, language="python")
+        else:
+            st.error("Error: Code execution failed.")
+            st.code(result.stderr, language="bash")
+    except Exception as e:
+        st.error("An error occurred while running the code:", e)
+
+st.set_page_config(
+    page_title="Chat Assistant using Gorilla LLM ",
+    page_icon="🤖",
+    layout="wide"
+)
+
+def main():
+    st.header("Gorilla LLM Assistant")
+    st.subheader("Enhance Conversations with Language Models")
+
+    user_prompt = st.text_area("Enter your conversation prompt:", height=150)
+
+    model_choice = st.selectbox('Select a language model:', ('gorilla-7b-hf-v1', "gorilla-mpt-7b-hf-v0"))
+
+    if st.button("Start Conversation"):
+        if len(user_prompt) > 0:
+            result = get_gorilla_response(prompt=user_prompt, model=model_choice)
+            
+            st.subheader("Model Response")
+            st.write(result)
+
+            code_result = extract_code(result)
+            
+            st.subheader("Generated Code Output")
+            st.code(code_result, language='python')
+            
+            file_path = f"generated_code_{model_choice}.py"
+            
+            with open(file_path, 'w') as file:
+                file.write(code_result)
+            
+            run_generated_code(file_path)
+
+if __name__ == "__main__":
+    main()
